@@ -1,29 +1,16 @@
 const cors = require('cors')();
 
 module.exports = async (req, res) => {
-  // ترويسات الحماية لضمان عمل الـ API على Hostinger
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
 
-  // رابط متجرك المباشر على قوقل ماب
-  const SHORT_URL = 'https://maps.app.goo.gl/BpjjWKkSy26P5SF88';
+  // رابط التقييمات المباشر لـ Arcid Design
+  const MAPS_SEARCH_URL = 'https://www.google.com/maps/place/Arcid+Design/@26.3171019,50.375216,12z/data=!4m12!1m2!2m1!1z2KPYsdmD2YrYryDZhNmE2KrYtdmF2YrZhSDYp9mE2K_Yp9iu2YTZig!3m8!1s0x3e49e97a657e96b5:0x2ec16a9087b66d5a!8m2!3d26.317178!4d50.2233116!9m1!1b1';
 
   try {
-    // 1. تتبع الرابط المختصر لاستخراج الرابط الكامل للمتجر
-    const headRes = await fetch(SHORT_URL, {
-      redirect: 'follow',
+    const response = await fetch(MAPS_SEARCH_URL, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept-Language': 'ar-SA,ar;q=0.9'
-      }
-    });
-
-    const finalUrl = headRes.url;
-
-    // 2. طلب محتوى صفحة قوقل ماب بلغة عربية وبشكل متصفح حقيقي
-    const response = await fetch(finalUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         'Accept-Language': 'ar-SA,ar;q=0.9,en-US;q=0.8'
       }
     });
@@ -31,7 +18,7 @@ module.exports = async (req, res) => {
     const htmlText = await response.text();
     const reviews = [];
 
-    // 3. استخراج التقييمات والنصوص باستخدام النمط المباشر (Regex)
+    // استخراج النصوص والتقييمات بالنمط البرمجي
     const reviewPattern = /\["([^"]+)",(?:null|"[^"]*"),\[(\d+)\],\["([^"]+)"\]/g;
     let match;
 
@@ -40,8 +27,7 @@ module.exports = async (req, res) => {
       const stars = parseInt(match[2]) || 5;
       const text = match[3];
 
-      // إبعاد النصوص القصيرة جداً والأكواد النظامية
-      if (name && text && text.length > 3 && !text.includes('http')) {
+      if (name && text && text.length > 2 && !text.startsWith('http')) {
         reviews.push({
           name: name,
           stars: stars,
@@ -51,14 +37,14 @@ module.exports = async (req, res) => {
       }
     }
 
-    // نمط احتياطي في حال اختلفت الاستجابة من قوقل
+    // نمط احتياطي لاستخراج المراجعات المباشرة
     if (reviews.length === 0) {
-      const fallbackRegex = /class="[^"]*wiM76[^"]*">([^<]+)<\/div>/g;
+      const simpleRegex = /class="[^"]*wiM76[^"]*">([^<]+)<\/div>/g;
       let fbMatch;
-      while ((fbMatch = fallbackRegex.exec(htmlText)) !== null) {
-        if (fbMatch[1] && fbMatch[1].length > 3) {
+      while ((fbMatch = simpleRegex.exec(htmlText)) !== null) {
+        if (fbMatch[1] && fbMatch[1].length > 2) {
           reviews.push({
-            name: "عميل قوقل",
+            name: "عميل Arcid Design",
             stars: 5,
             text: fbMatch[1],
             date: "تقييم حقيقي"
@@ -67,9 +53,8 @@ module.exports = async (req, res) => {
       }
     }
 
-    // إرجاع النتيجة
     return res.status(200).json({
-      title: "آراء عملائنا الحقيقية على قوقل ماب",
+      title: "تقييمات Arcid Design على قوقل ماب",
       count: reviews.length,
       reviews: reviews
     });
